@@ -1,0 +1,21 @@
+PATH
+  remote: .
+  specs:
+    sunniesnow-convert (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.18.0)
+    rake (13.0.6)
+
+PLATFORMS
+  x86_64-linux
+
+DEPENDENCIES
+  minitest (~> 5.0)
+  rake (~> 13.0)
+  sunniesnow-convert!
+
+BUNDLED WITH
+   2.4.13

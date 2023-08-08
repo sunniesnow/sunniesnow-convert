@@ -1,0 +1,57 @@
+#!/usr/bin/env ruby
+
+require 'sunniesnow-convert'
+require 'optparse'
+
+options = {}
+
+OptionParser.new do |opts|
+	opts.banner = 'Usage: sunniesnow-convert [options] input output'
+	opts.on '-gGAME', '--game=GAME', 'The game of the input chart' do |game|
+		options[:game] = game
+	end
+
+	opts.on '-h', '--help', 'Prints this help' do
+		puts opts
+		exit
+	end
+
+	opts.on '-t=TITLE', '--title=TITLE', 'Override title' do |title|
+		options[:title] = title
+	end
+
+	opts.on '-a=ARTIST', '--artist=ARTIST', 'Override artist' do |artist|
+		options[:artist] = artist
+	end
+
+	opts.on '-D=DIFFNAME', '--difficulty-name=DIFFNAME', 'Override difficulty name' do |difficulty_name|
+		options[:difficulty_name] = difficulty_name
+	end
+
+	opts.on '-d=DIFF', '--difficulty=DIFF', 'Override difficulty' do |difficulty|
+		options[:difficulty] = difficulty
+	end
+
+end.parse!
+
+unless game = options.delete(:game)
+	puts 'Game must be specified'
+	exit 1
+end
+
+unless input = ARGV[0]
+	puts 'Input file must be specified'
+	exit 1
+end
+
+unless output = ARGV[1]
+	puts 'Output file must be specified'
+	exit 1
+end
+
+unless converter = Sunniesnow::Convert::Converter.for(game)
+	puts "Unknown game #{game}"
+	exit 1
+end
+
+File.write output, converter.convert(File.read(input), **options)
