@@ -68,15 +68,13 @@ class Sunniesnow::Convert::Cytus < Sunniesnow::Convert::Converter
 		end
 	end
 
+	attr_accessor :top, :bottom, :left, :right
+
 	def initialize top: 50, bottom: -50, left: -100, right: 100
 		@top = top
 		@bottom = bottom
 		@left = left
 		@right = right
-	end
-
-	def convert input, **opts
-		convert_to_chart(input, **opts).to_json
 	end
 
 	def convert_to_chart input, title: '', artist: '', difficulty_name: :hard, difficulty: 0

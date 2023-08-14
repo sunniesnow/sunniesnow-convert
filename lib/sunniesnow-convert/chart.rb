@@ -6,10 +6,10 @@ class Sunniesnow::Chart
 		attr_accessor :time, :type
 		attr_reader :properties
 
-		def initialize time, type
+		def initialize time, type, **properties
 			@time = time
 			@type = type
-			@properties = {}
+			@properties = properties
 		end
 
 		def [] key
