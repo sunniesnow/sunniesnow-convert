@@ -238,8 +238,8 @@ class Sunniesnow::Convert::Cytus2 < Sunniesnow::Convert::Converter
 		result.title = title
 		result.artist = artist
 		result.charter = 'Rayark & sunniesnow-convert'
-		result.difficulty_name = difficulty_name.to_s.upcase
-		result.difficulty = difficulty.to_s
+		result.difficulty_name = difficulty_name&.to_s&.upcase || ''
+		result.difficulty = difficulty&.to_s || ''
 		result.difficulty_color = DIFFICULTY_COLORS[difficulty_name]
 		chart.page_list.each do |page|
 			page.notes.each do |note|
