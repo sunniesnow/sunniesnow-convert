@@ -94,19 +94,27 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			@last_ending_y = 0.0
 			@last_notes = {} # key: channel id, value: a note
 			@channel_id_bump = {} # key: channel id, value: bump
+			@current_index = 0
+			@last_ending_events = []
+			@last_ending_indices = []
+			@last_indices = {}
 		end
 
 		def add note
+			result = actual_add note
+			@current_index += 1
+			result
+		end
+
+		def actual_add note
 			return [] unless note
 			return no_tp note unless can_have_tp? note
 
 			b = note.tp_spawning
-			return cancel_tp note if b == 10
+			return cancel_tp note, true if b == 10
 			result = case b
 			when 0
 				spawning_0_events note
-			when 1
-				spawning_1_events note
 			when 2
 				spawning_2_events note
 			when 3
@@ -117,6 +125,8 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			unless result
 				return cancel_tp note unless can_have_falling_tp? note
 				result = case b
+				when 1
+					spawning_1_events note
 				when 5
 					spawning_5_events note
 				when 6
@@ -145,7 +155,10 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		# 继续游标链; 若超过 2s 则重新开始游标链
 		def spawning_0_events note
-			if @last_notes[note.tp_channel]&.time&.>= note.time - 2
+			a = note.tp_channel
+			if a == 20
+				spawn_at_last_ending note
+			elsif @last_notes[a]&.time&.>= note.time - 2
 				continue_tp note
 			else
 				spawn_at note, x_tp_map(note.x), -50 + 100 * rand
@@ -154,7 +167,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		# 从上次结束的地方引出游标
 		def spawning_1_events note
-			spawn_at note, @last_ending_x, @last_ending_y
+			spawn_at_last_ending note
 		end
 
 		# 小斜率随机
@@ -258,7 +271,12 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			spawning_event.time -= time > 1 ? 1 : time
 			spawning_event[:tipPoint] = event[:tipPoint] = end_tp a
 			@last_notes[a] = note
+			@last_indices[a] = @current_index
 			[spawning_event, event]
+		end
+
+		def spawn_at_last_ending note
+			@last_ending_events[@current_index] = spawn_at note, @last_ending_x, @last_ending_y
 		end
 
 		def continue_tp note
@@ -266,6 +284,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			event = note.to_sunniesnow
 			event[:tipPoint] = seek a
 			@last_notes[a] = note
+			@last_indices[a] = @current_index
 			[event]
 		end
 
@@ -273,17 +292,30 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			[note.to_sunniesnow]
 		end
 
-		def end_tp channel
+		def end_tp channel, force_record_ending = false
 			a = channel
 			return seek a unless last = @last_notes[a]
-			@last_ending_x = last.x
-			@last_ending_y = last.y
+			if a == -60 || force_record_ending
+				@last_ending_x = last.x
+				@last_ending_y = last.y
+				(@last_indices[a] + 1...@current_index).each do |i|
+					next unless @last_ending_events[i]
+					next if @last_ending_indices[i]&.>= @last_indices[a]
+					@last_ending_indices[i] = @last_indices[a]
+					spawning_event, event = @last_ending_events[i]
+					spawning_event[:x] = x = @last_ending_x
+					spawning_event[:y] = y = @last_ending_y
+					time = Math.hypot(x - event[:x], y - event[:y]) / TIP_POINT_MOVING_SPEED
+					spawning_event.time = event.time - [time, 1].min
+				end
+			end
 			@last_notes[a] = nil
+			@last_indices[a] = nil
 			bump a
 		end
 
-		def cancel_tp note
-			end_tp note.tp_channel
+		def cancel_tp note, force_record_ending = false
+			end_tp note.tp_channel, force_record_ending
 			no_tp note
 		end
 
@@ -301,6 +333,10 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		def can_have_tp? note
 			note.tp_channel.abs < 80
+		end
+
+		def wrap_up
+			@last_notes.each_key { end_tp _1 }
 		end
 	end
 
@@ -324,6 +360,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		result.difficulty = difficulty.to_s
 		result.difficulty_color = DIFFICULTY_COLORS[difficulty_name]
 		chart.notes.each { result.events.push *tp_manager.add(_1) }
+		tp_manager.wrap_up
 		chart.bg_events.each do |bg_event|
 			event = bg_event.to_sunniesnow
 			result.events.push event if event
