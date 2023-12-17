@@ -26,7 +26,7 @@ class Sunniesnow::Chart
 	end
 
 	attr_reader :events
-	attr_accessor :title, :charter, :artist, :difficulty_name, :difficulty_color, :difficulty
+	attr_accessor :title, :charter, :artist, :difficulty_name, :difficulty_color, :difficulty, :difficulty_sup
 	def initialize
 		@title = ''
 		@artist = ''
@@ -34,6 +34,7 @@ class Sunniesnow::Chart
 		@difficulty_name = ''
 		@difficulty_color = '#000000'
 		@difficulty = ''
+		@difficulty_sup = ''
 		@events = []
 	end
 
@@ -45,6 +46,7 @@ class Sunniesnow::Chart
 			difficultyName: @difficulty_name,
 			difficultyColor: @difficulty_color,
 			difficulty: @difficulty,
+			difficultySup: @difficulty_sup,
 			events: @events
 		}.to_json
 	end

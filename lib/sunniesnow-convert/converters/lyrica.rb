@@ -267,7 +267,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			spawning_event = ::Sunniesnow::Chart::Event.new note.time, :placeholder
 			spawning_event[:x] = x
 			spawning_event[:y] = y
-			time = Math.hypot(x - note.x, y - note.y) / TIP_POINT_MOVING_SPEED
+			time = 1.0 # Math.hypot(x - note.x, y - note.y) / TIP_POINT_MOVING_SPEED
 			spawning_event.time -= time > 1 ? 1 : time
 			spawning_event[:tipPoint] = event[:tipPoint] = end_tp a
 			@last_notes[a] = note
@@ -357,8 +357,9 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		result.artist = artist || chart.artist
 		result.charter = 'RNOVA Studio & sunniesnow-convert'
 		result.difficulty_name = difficulty_name.to_s.capitalize
-		result.difficulty = difficulty.to_s
+		result.difficulty = difficulty.floor.to_s
 		result.difficulty_color = DIFFICULTY_COLORS[difficulty_name]
+		result.difficulty_sup = difficulty % 1 > 0.5 ? '+' : ''
 		chart.notes.each { result.events.push *tp_manager.add(_1) }
 		tp_manager.wrap_up
 		chart.bg_events.each do |bg_event|
