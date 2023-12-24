@@ -4,7 +4,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		class Event
 
 			BG_PATTERNS = {
-				a1: :grid, a2: :hexagon, a3: :checkerboard, a4: :diamondGrid, a5: :pentagon, a6: :turntable
+				a1: :grid, a2: :hexagon, a3: :checkerboard, a4: :diamondGrid, a5: :pentagon, a6: :turntable, a7: :hexagram
 			}.tap { _1.default = :bigText }.freeze
 
 			attr_accessor :time, :x, :y, :type, :arg, :text
@@ -161,7 +161,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			elsif @last_notes[a]&.time&.>= note.time - 2
 				continue_tp note
 			else
-				spawn_at note, x_tp_map(note.x), -50 + 100 * rand
+				spawn_at note, x_tp_map(note.x), -50 + 100 * rand, slow: true
 			end
 		end
 
@@ -172,28 +172,28 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		# 小斜率随机
 		def spawning_2_events note
-			spawn_at note, x_tp_map(note.x), note.y + 50*(rand-0.5)
+			spawn_at note, x_tp_map(note.x), note.y + 50*(rand-0.5), slow: true
 		end
 
 		# 大斜率随机
 		def spawning_3_events note
-			spawn_at note, note.x + 100*(rand-0.5), y_tp_map(note.y)
+			spawn_at note, note.x + 100*(rand-0.5), y_tp_map(note.y)/2, slow: true
 		end
 
 		# 随机
 		def spawning_4_events note
 			rho, phi = 50 + 25 * rand, 2 * Math::PI * rand
-			spawn_at note, note.x + rho * Math.cos(phi), note.y + rho * Math.sin(phi)
+			spawn_at note, note.x + rho * Math.cos(phi), note.y + rho * Math.sin(phi), slow: true
 		end
 
 		# 横外落
 		def spawning_5_events note
-			spawn_at note, x_tp_map(note.x), note.y
+			spawn_at note, x_tp_map(note.x), note.y, slow: true
 		end
 
 		# 纵外落
 		def spawning_6_events note
-			spawn_at note, note.x, y_tp_map(note.y)
+			spawn_at note, note.x, y_tp_map(note.y), slow: true
 		end
 
 		# 上落
@@ -261,13 +261,13 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			seek a
 		end
 
-		def spawn_at note, x, y
+		def spawn_at note, x, y, slow: false
 			a = note.tp_channel
 			event = note.to_sunniesnow
 			spawning_event = ::Sunniesnow::Chart::Event.new note.time, :placeholder
 			spawning_event[:x] = x
 			spawning_event[:y] = y
-			time = 1.0 # Math.hypot(x - note.x, y - note.y) / TIP_POINT_MOVING_SPEED
+			time = slow ? 1.5 : 1.0 # Math.hypot(x - note.x, y - note.y) / TIP_POINT_MOVING_SPEED
 			spawning_event.time -= time > 1 ? 1 : time
 			spawning_event[:tipPoint] = event[:tipPoint] = end_tp a
 			@last_notes[a] = note
