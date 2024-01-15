@@ -100,13 +100,13 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			@last_indices = {}
 		end
 
-		def add note
-			result = actual_add note
+		def add note, index
+			result = actual_add note, index
 			@current_index += 1
 			result
 		end
 
-		def actual_add note
+		def actual_add note, index
 			return [] unless note
 			return no_tp note unless can_have_tp? note
 
@@ -131,6 +131,8 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 					spawning_5_events note
 				when 6
 					spawning_6_events note
+				when 12
+					spawning_12_events note
 				when 20
 					spawning_20_events note
 				when 21
@@ -147,6 +149,9 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 					spawning_26_events note
 				when 27
 					spawning_27_events note
+				else
+					warn "Unknown tp_spawning = #{b} at note #{index}"
+					spawning_0_events note
 				end
 			end
 			end_tp_if_should note
@@ -194,6 +199,10 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		# 纵外落
 		def spawning_6_events note
 			spawn_at note, note.x, y_tp_map(note.y), slow: true
+		end
+
+		def spawning_12_events note
+			spawn_at note, x_tp_map(note.x), -50 + 100 * rand, slow: true
 		end
 
 		# 上落
@@ -360,7 +369,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		result.difficulty = difficulty.floor.to_s
 		result.difficulty_color = DIFFICULTY_COLORS[difficulty_name]
 		result.difficulty_sup = difficulty % 1 > 0.5 ? '+' : ''
-		chart.notes.each { result.events.push *tp_manager.add(_1) }
+		chart.notes.each_with_index { result.events.push *tp_manager.add(_1, _2) }
 		tp_manager.wrap_up
 		chart.bg_events.each do |bg_event|
 			event = bg_event.to_sunniesnow
