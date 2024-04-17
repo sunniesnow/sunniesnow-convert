@@ -27,6 +27,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 			def sunniesnow_type
 				@bg ? @tp_channel == 40 ? BG_PATTERNS[@text.to_sym] : :bgNote : %i[drag tap tap flick hold][@type]
+				# TODO: showImage, covering type=11,12
 			end
 
 			def to_sunniesnow
@@ -34,6 +35,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 				result = ::Sunniesnow::Chart::Event.new @time, type
 				result[:text] = @text if %i[tap flick hold bgNote bigText].include? type
 				result[:duration] = @arg unless %i[tap flick drag].include? type
+				result[:duration] = 0 if @bg && ![4, 11, 12].include?(@type)
 				result[:angle] = Math::PI/2 - @arg/180*Math::PI if type == :flick
 				result[:x], result[:y] = @x, @y if %i[tap flick hold drag bgNote].include? type
 				result
@@ -314,7 +316,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 					spawning_event, event = @last_ending_events[i]
 					spawning_event[:x] = x = @last_ending_x
 					spawning_event[:y] = y = @last_ending_y
-					time = Math.hypot(x - event[:x], y - event[:y]) / TIP_POINT_MOVING_SPEED
+					time = 1 # Math.hypot(x - event[:x], y - event[:y]) / TIP_POINT_MOVING_SPEED
 					spawning_event.time = event.time - [time, 1].min
 				end
 			end
