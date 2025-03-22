@@ -7,10 +7,20 @@ class Sunniesnow::Convert::Cytus < Sunniesnow::Convert::Converter
 			attr_accessor :time, :x, :duration, :link
 
 			def initialize id, time, x, duration
-				@id = id
-				@time = time
-				@x = x
-				@duration = duration
+				@id = id.to_i
+				@time = time.to_f
+				@x = x.to_f
+				@duration = duration.to_f
+			end
+		end
+
+		class Section
+			attr_accessor :time, :duration, :type
+
+			def initialize time, duration, type
+				@time = time.to_f
+				@duration = duration.to_f
+				@type = {5 => :up, 4 => :down}[type.to_i]
 			end
 		end
 
@@ -30,12 +40,24 @@ class Sunniesnow::Convert::Cytus < Sunniesnow::Convert::Converter
 				case function
 				when 'VERSION'
 					@version = args[0]
+				when 'NAME'
+					@name = args[0]
+				when 'BG_MUSIC'
+					@bg_music = args[0]
 				when 'BPM'
 					@bpm = args[0].to_f
+				when 'SHIFT'
+					@shift = args[0].to_f
 				when 'PAGE_SHIFT'
 					@page_shift = args[0].to_f
 				when 'PAGE_SIZE'
 					@page_size = args[0].to_f
+				when 'BLINK_SHIFT'
+					@blink_shift = args[0].to_f
+				when 'SCAN_MODE'
+					@scan_mode = args[0]
+				when 'SECTION'
+					add_section *args
 				when 'NOTE'
 					add_note *args
 				when 'LINK'
@@ -44,9 +66,36 @@ class Sunniesnow::Convert::Cytus < Sunniesnow::Convert::Converter
 			end
 		end
 
-		def add_note id, time, x, duration
-			id = id.to_i
-			@notes[id] = Note.new id, time.to_f, x.to_f, duration.to_f
+		def add_section time, duration, type
+			@sections ||= []
+			@sections.push Section.new time, duration, type
+		end
+
+		def add_note *args
+			if @version == '2'
+				@notes[args[0].to_i] = Note.new *args
+			else
+				# simultaneity: notes at the same time has different simultaneity id
+				# type: 0 for tap, 1 for link start, 2 for hold, 3 for link body
+				# link_next: note id of the nexted linked note; -1 for none
+				id, simultaneity, time, type, x, link_next, duration = args
+				id = id.to_i
+				@notes[id] = note = Note.new id, time, x, duration
+				return unless %w[1 3].include? type
+				if link = @links&.find_index { _1.include? id }
+					note.link = link
+				end
+				link_next = link_next.to_i
+				return if link_next < 0
+				@links ||= []
+				if note.link
+					@links[note.link].add link_next
+				else
+					note.link = @link_count
+					@links.push Set[id, link_next]
+					@link_count += 1
+				end
+			end
 		end
 
 		def add_link ids
@@ -55,11 +104,23 @@ class Sunniesnow::Convert::Cytus < Sunniesnow::Convert::Converter
 		end
 
 		def y_at time, top: 50, bottom: -50
-			page, progress = ((time + @page_shift) / @page_size).divmod 1
-			if page % 2 == 0
-				bottom + progress * (top - bottom)
+			if @version == '2'
+				page, progress = ((time + @page_shift) / @page_size).divmod 1
+				if page % 2 == 0
+					bottom + progress * (top - bottom)
+				else
+					top - progress * (top - bottom)
+				end
 			else
-				top - progress * (top - bottom)
+				section = @sections.find { time >= _1.time && time < _1.time + _1.duration }
+				case section&.type
+				when :up
+					bottom + (time - section.time) / section.duration * (top - bottom)
+				when :down
+					top - (time - section.time) / section.duration * (top - bottom)
+				else
+					(top + bottom) / 2.0
+				end
 			end
 		end
 
