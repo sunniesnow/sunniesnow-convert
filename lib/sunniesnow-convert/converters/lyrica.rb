@@ -359,7 +359,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		special: '#f156ee'
 	}
 
-	def convert_to_chart input, title: nil, artist: nil, difficulty_name: :master, difficulty_color: nil, difficulty: 0, random: Random.new
+	def convert_to_chart input, title: nil, artist: nil, difficulty_name: 'Unknown', difficulty_sup: '', difficulty_color: nil, difficulty: '0', random: Random.new
 		tp_manager = TipPointManager.new random
 		chart = Chart.new input
 		result = ::Sunniesnow::Chart.new
@@ -367,9 +367,9 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 		result.artist = artist || chart.artist
 		result.charter = 'RNOVA Studio & sunniesnow-convert'
 		result.difficulty_name = difficulty_name.to_s
-		result.difficulty = difficulty.floor.to_s
+		result.difficulty = difficulty
 		result.difficulty_color = difficulty_color || DIFFICULTY_COLORS[difficulty_name.to_s.downcase.to_sym]
-		result.difficulty_sup = difficulty % 1 > 0.5 ? '+' : ''
+		result.difficulty_sup = difficulty_sup
 		chart.notes.each_with_index { result.events.push *tp_manager.add(_1, _2) }
 		tp_manager.wrap_up
 		chart.bg_events.each do |bg_event|
