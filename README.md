@@ -13,4 +13,4 @@ sunniesnow-convert --game=cytus input.txt output.json
 
 ## License
 
-This project is licensed under [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html).
+This project is licensed under [AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.html).

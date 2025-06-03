@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "Converter from charts of other rhythm games into Sunniesnow charts"
   spec.homepage = "https://github.com/sunniesnow/sunniesnow-convert"
-  spec.license = "AGPL-3.0-only"
+  spec.license = "AGPL-3.0-or-later"
   spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["homepage_uri"] = spec.homepage
