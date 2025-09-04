@@ -18,15 +18,25 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 				@x = args[2].to_f
 				@y = args[3].to_f
 				@type = args[4].to_i
-				@arg = args[5].to_f
+				@arg, @arg2 = args[5].split ?_
+				@arg = @arg.to_f
+				@arg2 = @arg2&.to_i
 				@text = args[6]
 				@tp_spawning = args[7].to_i
 				@tp_ending = args[8].to_i == 1
+				if @tp_spawning % 20 >= 10 && args[8].nil?
+					@tp_spawning -= 10
+					@tp_ending = true
+				end
 				@bg = bg
 			end
 
 			def sunniesnow_type
-				@bg ? @tp_channel == 40 ? BG_PATTERNS[@text.to_sym] : :bgNote : %i[drag tap tap flick hold][@type]
+				if @bg
+					@tp_channel == 40 ? BG_PATTERNS[@text.to_sym] : :bgNote
+				else
+					%i[drag tap tap flick hold][@type]
+				end
 				# TODO: showImage, covering type=11,12
 			end
 
@@ -88,7 +98,13 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 	class TipPointManager
 
-		TIP_POINT_MOVING_SPEED = 100 # per second
+		NO_TP_CHANNELS = [-100, -80]
+		MAIN_CHANNEL = -60
+		INDEPENDENT_CHANNEL = 20
+
+		SLOW_TP_TIME = 1.5
+		FAST_TP_TIME = 1.0
+		MAX_TP_TIME = 2.0
 
 		def initialize random = Random.new
 			@random = random
@@ -110,153 +126,155 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		def actual_add note, index
 			return [] unless note
-			return no_tp note unless can_have_tp? note
+			return no_tp note if NO_TP_CHANNELS.include? note.tp_channel
 
-			b = note.tp_spawning
-			return cancel_tp note, true if b == 10
-			result = case b
+			result = case b = note.tp_spawning
 			when 0
 				spawning_0_events note
+			when 1
+				spawning_1_events note
 			when 2
 				spawning_2_events note
 			when 3
 				spawning_3_events note
 			when 4
 				spawning_4_events note
-			end
-			unless result
-				return cancel_tp note unless can_have_falling_tp? note
-				result = case b
-				when 1
-					spawning_1_events note
-				when 5
-					spawning_5_events note
-				when 6
-					spawning_6_events note
-				when 12
-					spawning_12_events note
-				when 20
-					spawning_20_events note
-				when 21
-					spawning_21_events note
-				when 22
-					spawning_22_events note
-				when 23
-					spawning_23_events note
-				when 24
-					spawning_24_events note
-				when 25
-					spawning_25_events note
-				when 26
-					spawning_26_events note
-				when 27
-					spawning_27_events note
-				else
-					warn "Unknown tp_spawning = #{b} at note #{index}"
-					spawning_0_events note
-				end
+			when 5
+				spawning_5_events note
+			when 6
+				spawning_6_events note
+			when 20
+				spawning_20_events note
+			when 21
+				spawning_21_events note
+			when 22
+				spawning_22_events note
+			when 23
+				spawning_23_events note
+			when 24
+				spawning_24_events note
+			when 25
+				spawning_25_events note
+			when 26
+				spawning_26_events note
+			when 27
+				spawning_27_events note
+			else
+				warn "Unknown tp_spawning = #{b} at note #{index}"
+				spawning_0_events note
 			end
 			end_tp_if_should note
 			result
 		end
 
+		def rand_range min, max
+			min + (max - min) * rand
+		end
+
+		def rand_bool
+			rand < 0.5
+		end
+
+		def rand_sign
+			rand_bool ? 1 : -1
+		end
+
 		# 继续游标链; 若超过 2s 则重新开始游标链
 		def spawning_0_events note
 			a = note.tp_channel
-			if a == 20
-				spawn_at_last_ending note
-			elsif @last_notes[a]&.time&.>= note.time - 2
+			if a == INDEPENDENT_CHANNEL
+				spawn_at_last_main note
+			elsif @last_notes[a]&.time&.>= note.time - MAX_TP_TIME
 				continue_tp note
 			else
-				spawn_at note, x_tp_map(note.x), -50 + 100 * rand, slow: true
+				spawn_at_auto note
 			end
 		end
 
 		# 从上次结束的地方引出游标
 		def spawning_1_events note
-			spawn_at_last_ending note
+			spawn_at_last_main note
 		end
 
 		# 小斜率随机
 		def spawning_2_events note
-			spawn_at note, x_tp_map(note.x), note.y + 50*(rand-0.5), slow: true
+			x = note.x > 0 ? (note.x-120).clamp(-100,0) : (note.x+120).clamp(0,100)
+			y = rand_range -50, 50
+			spawn_at note, x, y, :slow
 		end
 
 		# 大斜率随机
 		def spawning_3_events note
-			spawn_at note, note.x + 100*(rand-0.5), y_tp_map(note.y)/2, slow: true
+			x = rand_range (note.x-40).clamp(-130,130), (note.x+40).clamp(-130,130)
+			y = note.y > 0 ? -75 : 75
+			spawn_at note, x, y, :slow
 		end
 
 		# 随机
 		def spawning_4_events note
-			rho, phi = 50 + 25 * rand, 2 * Math::PI * rand
-			spawn_at note, note.x + rho * Math.cos(phi), note.y + rho * Math.sin(phi), slow: true
+			if rand_bool
+				x = (note.x.abs>50 ? note.x>0 : rand_bool) ? (note.x-120).clamp(-100,0) : (note.x+120).clamp(0,100)
+				y = rand_range -50, 50
+			else
+				x = rand_range (note.x-40).clamp(-130,130), (note.x+40).clamp(-130,130)
+				y = -80*(note.x.abs > 50 && note.y.abs > 20 ? note.y<=>0 : rand_sign)
+			end
+			spawn_at note, x, y, :slow
 		end
 
 		# 横外落
 		def spawning_5_events note
-			spawn_at note, x_tp_map(note.x), note.y, slow: true
+			x = note.x > 0 ? (note.x-120).clamp(-100,0) : (note.x+120).clamp(0,100)
+			spawn_at note, x, note.y, :slow
 		end
 
 		# 纵外落
 		def spawning_6_events note
-			spawn_at note, note.x, y_tp_map(note.y), slow: true
-		end
-
-		def spawning_12_events note
-			spawn_at note, x_tp_map(note.x), -50 + 100 * rand, slow: true
+			y = note.y > 0 ? -100 : 100
+			spawn_at note, note.x, y, :fast
 		end
 
 		# 上落
 		def spawning_20_events note
-			spawn_at note, note.x, note.y - 100
+			spawn_at note, note.x, note.y - 100, :fast
 		end
 
 		# 右上落
 		def spawning_21_events note
-			spawn_at note, note.x - 75, note.y - 75
+			spawn_at note, note.x - 72, note.y - 72, :fast
 		end
 
 		# 右落
 		def spawning_22_events note
-			spawn_at note, note.x - 100, note.y
+			spawn_at note, note.x - 100, note.y, :fast
 		end
 
 		# 右下落
 		def spawning_23_events note
-			spawn_at note, note.x - 75, note.y + 75
+			spawn_at note, note.x - 72, note.y + 72, :fast
 		end
 
 		# 下落
 		def spawning_24_events note
-			spawn_at note, note.x, note.y + 100
+			spawn_at note, note.x, note.y + 100, :fast
 		end
 
 		# 左下落
 		def spawning_25_events note
-			spawn_at note, note.x + 75, note.y + 75
+			spawn_at note, note.x + 72, note.y + 72, :fast
 		end
 
 		# 左落
 		def spawning_26_events note
-			spawn_at note, note.x + 100, note.y
+			spawn_at note, note.x + 100, note.y, :fast
 		end
 
 		# 左上落
 		def spawning_27_events note
-			spawn_at note, note.x + 75, note.y - 75
+			spawn_at note, note.x + 72, note.y - 72, :fast
 		end
 
-		def x_tp_map x
-			return -x_tp_map(-x) if x > 0
-			100.0 + (x/25.0 + 0.5).round(half: :even)
-		end
-
-		def y_tp_map y
-			y > 0 ? -100.0 : 100.0
-		end
-
-		def seek channel
+		def peek channel
 			a = channel
 			"#{a} #{@channel_id_bump[a] ||= 0}"
 		end
@@ -269,31 +287,46 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			a = channel
 			@channel_id_bump[a] ||= 0
 			@channel_id_bump[a] += 1
-			seek a
+			peek a
 		end
 
-		def spawn_at note, x, y, slow: false
+		def spawn_at note, x, y, time
 			a = note.tp_channel
 			event = note.to_sunniesnow
-			spawning_event = ::Sunniesnow::Chart::Event.new note.time, :placeholder
+			if time == :slow || time == :fast
+				time = note.time - (time == :slow ? SLOW_TP_TIME : FAST_TP_TIME)
+				if a != INDEPENDENT_CHANNEL && (last = @last_notes[a])
+					time = [time, last.time].max
+				end
+			end
+			spawning_event = ::Sunniesnow::Chart::Event.new time, :placeholder
 			spawning_event[:x] = x
 			spawning_event[:y] = y
-			time = slow ? 1.5 : 1.0 # Math.hypot(x - note.x, y - note.y) / TIP_POINT_MOVING_SPEED
-			spawning_event.time -= time > 1 ? 1 : time
 			spawning_event[:tipPoint] = event[:tipPoint] = end_tp a
 			@last_notes[a] = note
 			@last_indices[a] = @current_index
 			[spawning_event, event]
 		end
 
-		def spawn_at_last_ending note
-			@last_ending_events[@current_index] = spawn_at note, @last_ending_x, @last_ending_y
+		def spawn_at_last_main note
+			if last = @last_notes[MAIN_CHANNEL]
+				time = note.tp_channel == INDEPENDENT_CHANNEL ? note.time - SLOW_TP_TIME : [note.time - MAX_TP_TIME, last.time].max
+				spawn_at note, last.x, last.y, time
+			else
+				spawn_at_auto note
+			end
+		end
+
+		def spawn_at_auto note
+			x = note.x > 0 ? (note.x-120).clamp(-100,0) : (note.x+120).clamp(0,100)
+			y = rand_range -50, 50
+			spawn_at note, x, y, note.time - SLOW_TP_TIME
 		end
 
 		def continue_tp note
 			a = note.tp_channel
 			event = note.to_sunniesnow
-			event[:tipPoint] = seek a
+			event[:tipPoint] = peek a
 			@last_notes[a] = note
 			@last_indices[a] = @current_index
 			[event]
@@ -303,47 +336,19 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			[note.to_sunniesnow]
 		end
 
-		def end_tp channel, force_record_ending = false
+		def end_tp channel
 			a = channel
-			return seek a unless last = @last_notes[a]
-			if a == -60 || force_record_ending
-				@last_ending_x = last.x
-				@last_ending_y = last.y
-				(@last_indices[a] + 1...@current_index).each do |i|
-					next unless @last_ending_events[i]
-					next if @last_ending_indices[i]&.>= @last_indices[a]
-					@last_ending_indices[i] = @last_indices[a]
-					spawning_event, event = @last_ending_events[i]
-					spawning_event[:x] = x = @last_ending_x
-					spawning_event[:y] = y = @last_ending_y
-					time = 1 # Math.hypot(x - event[:x], y - event[:y]) / TIP_POINT_MOVING_SPEED
-					spawning_event.time = event.time - [time, 1].min
-				end
+			if @last_notes[a]
+				@last_notes[a] = nil
+				bump a
+			else
+				peek a
 			end
-			@last_notes[a] = nil
-			@last_indices[a] = nil
-			bump a
-		end
-
-		def cancel_tp note, force_record_ending = false
-			end_tp note.tp_channel, force_record_ending
-			no_tp note
 		end
 
 		def end_tp_if_should note
 			return unless note.tp_ending
 			end_tp note.tp_channel
-		end
-
-		def can_have_falling_tp? note
-			a = note.tp_channel
-			return true if a == 20
-			return true unless last = @last_notes[a]
-			last.time < note.time - 1
-		end
-
-		def can_have_tp? note
-			note.tp_channel.abs < 80
 		end
 
 		def wrap_up
