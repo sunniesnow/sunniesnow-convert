@@ -52,10 +52,11 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 				if @type == 12
 					result[:filename] = "showObj%02d.png" % @arg2
 					result[:width] = 280
+					result[:y] = 0 # ???
 				elsif @type == 11
 					result[:filename] = "HalfRole%02d.png" % @arg2
 					result[:width] = 100
-					result[:y] += 10
+					result[:y] += 10 # ???
 				end
 				result
 			end
