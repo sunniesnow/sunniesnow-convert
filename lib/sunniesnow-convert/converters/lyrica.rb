@@ -3,6 +3,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 	class Chart
 		class Event
 
+			BG_PATTERN_CHANNEL = 40
 			BG_PATTERNS = {
 				a1: :grid, a2: :hexagon, a3: :checkerboard, a4: :diamondGrid, a5: :pentagon, a6: :turntable, a7: :hexagram
 			}.tap { _1.default = :bigText }.freeze
@@ -33,11 +34,11 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 			def sunniesnow_type
 				if @bg
-					@tp_channel == 40 ? BG_PATTERNS[@text.to_sym] : :bgNote
+					return BG_PATTERNS[@text.to_sym] if @tp_channel == BG_PATTERN_CHANNEL
+					[11, 12].include?(@type) ? :image : :bgNote
 				else
 					%i[drag tap tap flick hold][@type]
 				end
-				# TODO: showImage, covering type=11,12
 			end
 
 			def to_sunniesnow
@@ -47,7 +48,15 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 				result[:duration] = @arg unless %i[tap flick drag].include? type
 				result[:duration] = 0 if @bg && ![4, 11, 12].include?(@type)
 				result[:angle] = Math::PI/2 - @arg/180*Math::PI if type == :flick
-				result[:x], result[:y] = @x, @y if %i[tap flick hold drag bgNote].include? type
+				result[:x], result[:y] = @x, @y if %i[tap flick hold drag bgNote image].include? type
+				if @type == 12
+					result[:filename] = "showObj%02d.png" % @arg2
+					result[:width] = 280
+				elsif @type == 11
+					result[:filename] = "HalfRole%02d.png" % @arg2
+					result[:width] = 100
+					result[:y] += 10
+				end
 				result
 			end
 		end
@@ -108,23 +117,11 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		def initialize random = Random.new
 			@random = random
-			@last_ending_x = 0.0
-			@last_ending_y = 0.0
 			@last_notes = {} # key: channel id, value: a note
 			@channel_id_bump = {} # key: channel id, value: bump
-			@current_index = 0
-			@last_ending_events = []
-			@last_ending_indices = []
-			@last_indices = {}
 		end
 
 		def add note, index
-			result = actual_add note, index
-			@current_index += 1
-			result
-		end
-
-		def actual_add note, index
 			return [] unless note
 			return no_tp note if NO_TP_CHANNELS.include? note.tp_channel
 
@@ -304,7 +301,6 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			spawning_event[:y] = y
 			spawning_event[:tipPoint] = event[:tipPoint] = end_tp a
 			@last_notes[a] = note
-			@last_indices[a] = @current_index
 			[spawning_event, event]
 		end
 
@@ -328,7 +324,6 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 			event = note.to_sunniesnow
 			event[:tipPoint] = peek a
 			@last_notes[a] = note
-			@last_indices[a] = @current_index
 			[event]
 		end
 
