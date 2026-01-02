@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sunniesnow-convert (0.1.0)
+    sunniesnow-convert (0.1.2)
 
 GEM
   remote: https://rubygems.org/

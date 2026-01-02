@@ -94,13 +94,20 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 				next unless note.type == 2
 				next if (left = previous_note.type == 2) && previous_note.time == note.time
 				next if (right = next_note.type == 2) && next_note.time == note.time
-				if left && right
-					note.time = [previous_note, next_note].min_by { (_1.time - note.time).abs }.time
+				new_time = if left && right
+					[previous_note, next_note].min_by { (_1.time - note.time).abs }.time
 				elsif left
-					note.time = previous_note.time
+					previous_note.time
 				elsif right
-					note.time = next_note.time
+					next_note.time
+				else
+					note.time
 				end
+				if (new_time - note.time).abs > 0.01
+					warn 'Unable to find a simultaneous note'
+					next
+				end
+				note.time = new_time
 			end
 		end
 
