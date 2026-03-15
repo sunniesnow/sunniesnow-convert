@@ -67,6 +67,9 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 
 		def initialize input
 			lines = input.lines chomp: true
+			(1..3).each do |i|
+				lines.insert i*2, '' if lines[i*2] == "##{i+1}"
+			end
 			read_meta lines[0]
 			@notes = read_events lines[2], false
 			@bg_events = read_events lines[4], true
