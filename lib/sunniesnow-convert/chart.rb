@@ -4,12 +4,13 @@ class Sunniesnow::Chart
 
 	class Event
 		attr_accessor :time, :type
-		attr_reader :properties
+		attr_reader :properties, :time_dependent
 
 		def initialize time, type, **properties
 			@time = time
 			@type = type
 			@properties = properties
+			@time_dependent = {}
 		end
 
 		def [] key
@@ -21,7 +22,7 @@ class Sunniesnow::Chart
 		end
 
 		def to_json *args
-			{time: @time, type: @type, properties: @properties}.to_json
+			{time: @time, type: @type, properties: @properties, timeDependent: @time_dependent}.to_json
 		end
 	end
 

@@ -8,7 +8,7 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 				a1: :grid, a2: :hexagon, a3: :checkerboard, a4: :diamondGrid, a5: :pentagon, a6: :turntable, a7: :hexagram
 			}.tap { _1.default = :bigText }.freeze
 
-			attr_accessor :time, :x, :y, :type, :arg, :text
+			attr_accessor :time, :x, :y, :type, :arg, :arg2, :text, :perform
 			attr_accessor :tp_channel, :tp_spawning, :tp_ending
 			attr_reader :bg
 
@@ -29,26 +29,32 @@ class Sunniesnow::Convert::Lyrica < Sunniesnow::Convert::Converter
 					@tp_spawning -= 10
 					@tp_ending = true
 				end
+				@perform = args[9]&.to_i
 				@bg = bg
 			end
 
 			def sunniesnow_type
 				if @bg
 					return BG_PATTERNS[@text.to_sym] if @tp_channel == BG_PATTERN_CHANNEL
+					return if @type == 13 # TODO: filter event (anomaly!)
 					[11, 12].include?(@type) ? :image : :bgNote
 				else
-					%i[drag tap tap flick hold][@type]
+					@perform == 1 ? :headOnlyHold : %i[drag tap tap flick hold][@type]
 				end
 			end
 
 			def to_sunniesnow
 				return unless type = sunniesnow_type
 				result = ::Sunniesnow::Chart::Event.new @time, type
-				result[:text] = @text if %i[tap flick hold bgNote bigText].include? type
+				result[:text] = @text if %i[tap flick hold headOnlyHold bgNote bigText].include? type
 				result[:duration] = @arg unless %i[tap flick drag].include? type
 				result[:duration] = 0 if @bg && ![4, 11, 12].include?(@type)
 				result[:angle] = Math::PI/2 - @arg/180*Math::PI if type == :flick
-				result[:x], result[:y] = @x, @y if %i[tap flick hold drag bgNote image].include? type
+				result[:x], result[:y] = @x, @y if %i[tap flick hold drag headOnlyHold bgNote image].include? type
+				result[:fake] = true if [3, 4].include? @perform
+				result[:doubleLine] = 'never' if [2, 3, 4].include? @perform
+				result.time_dependent[:opacity] = {value: 0} if [2, 4].include? @perform
+				result.time_dependent[:circleOpacity] = {value: 0} if [3, 4].include? @perform
 				if @type == 12
 					result[:filename] = "showObj%02d.png" % @arg2
 					result[:width] = 280
